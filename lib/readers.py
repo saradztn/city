@@ -151,8 +151,10 @@ def read_dff(path):
         g['binmesh'] = meshes
         nc = gex.find(0x253F2F9)
         if nc:
-            assert len(nc) == 1 and len(nc[0].data) == nv * 4, 'night vertex colour plugin must be exactly RGBA per vertex'
-            g['night'] = np.frombuffer(nc[0].data, np.uint8).reshape(nv, 4)
+            assert len(nc) == 1 and len(nc[0].data) == 4 + nv * 4, 'night vertex colour plugin must have a 32-bit magic plus RGBA per vertex'
+            magic, = struct.unpack_from('<I', nc[0].data, 0)
+            assert magic != 0, 'night vertex colour plugin magic must be non-zero when color data is present'
+            g['night'] = np.frombuffer(nc[0].data, np.uint8, nv * 4, 4).reshape(nv, 4)
         else:
             g['night'] = None
         geoms.append(g)

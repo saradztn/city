@@ -116,8 +116,9 @@ def geometry_chunk(g, materials):
         tot += len(idx)
     ex = chunk(ID_BINMESH, struct.pack('<III', 0, nm, tot) + bm)
     if g.get('night') is not None:
-        # GTA's Extra Vertex Colour plugin is exactly one RGBA byte tuple per vertex (no count prefix).
-        ex += chunk(ID_NIGHTCOL, np.asarray(g['night'], np.uint8).tobytes())
+        # GTA SA's Extra Vertex Colour plugin starts with a non-zero 32-bit magic, then one RGBA per vertex.
+        night = np.asarray(g['night'], np.uint8)
+        ex += chunk(ID_NIGHTCOL, struct.pack('<I', 1) + night.tobytes())
     geo += ext(ex)
     return chunk(ID_GEOMETRY, geo)
 

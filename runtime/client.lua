@@ -87,17 +87,17 @@ local function abortModelLoad(reason)
         setElementFrozen(localPlayer, false)
         playerHeldByCity = false
     end
-    say("" .. reason .. "; " .. #NC_MODELS .. " models could not be loaded. The partial load was cleaned up.")
+    say(tostring(reason) .. ". The partial model load was cleaned up.")
 end
 
 local function loadOneModel(index)
     local data = NC_MODELS[index]
     if not data then
-        return false
+        return false, "model metadata"
     end
     local id = engineRequestModel("object")
     if not id then
-        return false
+        return false, "engineRequestModel"
     end
     modelIds[index] = id
     table.insert(allocatedIds, id)
@@ -105,32 +105,32 @@ local function loadOneModel(index)
     -- MTA requires replacements in COL -> TXD -> DFF order; reversing this can reject DFFs.
     local col = engineLoadCOL("files/" .. data.name .. ".col")
     if not isElement(col) then
-        return false
+        return false, "engineLoadCOL", id
     end
     table.insert(modelElements, col)
     if not engineReplaceCOL(col, id) then
-        return false
+        return false, "engineReplaceCOL", id
     end
 
     local txd = txdCache[data.txd]
     if not isElement(txd) then
         txd = engineLoadTXD("files/" .. data.txd .. ".txd")
         if not isElement(txd) then
-            return false
+            return false, "engineLoadTXD", id
         end
         txdCache[data.txd] = txd
     end
     if not engineImportTXD(txd, id) then
-        return false
+        return false, "engineImportTXD", id
     end
 
     local dff = engineLoadDFF("files/" .. data.name .. ".dff")
     if not isElement(dff) then
-        return false
+        return false, "engineLoadDFF", id
     end
     table.insert(modelElements, dff)
     if not engineReplaceModel(dff, id, false) then
-        return false
+        return false, "engineReplaceModel", id
     end
     engineSetModelLODDistance(id, tonumber(data.dist) or 500)
     return true
@@ -421,8 +421,15 @@ local function beginModelLoad()
             return
         end
         loadIndex = loadIndex + 1
-        if not loadOneModel(loadIndex) then
-            abortModelLoad("1 of " .. #NC_MODELS .. " models could not be loaded")
+        local loaded, stage, failedId = loadOneModel(loadIndex)
+        if not loaded then
+            local data = NC_MODELS[loadIndex]
+            local detail = string.format("Model %d/%d (%s) failed at %s", loadIndex, #NC_MODELS,
+                data and data.name or "unknown", stage or "unknown stage")
+            if failedId then
+                detail = detail .. " (model ID " .. tostring(failedId) .. ")"
+            end
+            abortModelLoad(detail)
             return
         end
         if loadIndex >= #NC_MODELS then
