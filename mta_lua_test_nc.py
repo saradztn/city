@@ -58,7 +58,7 @@ def boot(server_patch=None, drop_files=()):
             T.files[f] = True
     for n in TEXTURES:
         T.textures[n] = True
-    for fx in ('wet.fx', 'post.fx'):
+    for fx in ('wet.fx',):
         t = lua.table()
         for v in fx_vars(os.path.join(RES, fx)):
             t[v] = True
@@ -114,10 +114,11 @@ N_OBJECTS = len(G('NC_OBJECTS'))
 N_WATER = len(G('NC_WATER'))
 N_SPRITES = len(G('NC_SPRITES'))
 print('   models %d, objects %d, water rects %d, sprites %d' % (N_MODELS, N_OBJECTS, N_WATER, N_SPRITES))
-for c in ('ncfx', 'ncexposure', 'ncrain', 'nctime', 'ncview', 'ncinfo', 'nctour', 'ncfree'):
+for c in ('ncfx', 'ncrain', 'nctime', 'ncview', 'ncinfo', 'nctour', 'ncfree'):
     check(T.hasCmd('client', c), 'client command /%s registered' % c)
 for c in ('ncshow', 'nchide', 'ncz', 'ncempty'):
     check(T.hasCmd('server', c), 'server command /%s registered' % c)
+    check(not T.hasCmd('client', c), 'server command /%s has no conflicting client placeholder' % c)
 check(not errors(T), 'loading the scripts raised no error')
 
 print('\n== resource start: nothing is shown until the server says so ==')
@@ -141,16 +142,16 @@ check(T.alive('texture') == 2, 'glow + steam textures loaded')
 adv(T, 3000)
 check(bool(T.player.frozen) is False, 'the player was released after the ground probe')
 check(T.alive('sound') >= 4, 'ambience running (%d sounds)' % T.alive('sound'))
-check(T.alive('shader') == 2, 'wet.fx and post.fx created')
+check(T.alive('shader') == 1, 'the localized wet.fx material shader created')
 check(int(T.shaderTextures('wet.fx')) == 9, 'wet shader applied to 9 ground textures')
-check(abs(float(T.shaderValue('wet.fx', 'gWet')) - 1.0) < 1e-6, 'gWet = 1')
-check(T.shaderValue('wet.fx', 'gScreen') is not None and T.shaderValue('post.fx', 'ScreenTexture') is not None, 'screen source handed to both shaders')
+check(abs(float(T.shaderValue('wet.fx', 'gWet')) - 0.0) < 1e-6, 'dry daylight starts with gWet = 0')
+check(T.shaderValue('wet.fx', 'gScreen') is not None and T.alive('screensource') == 1, 'screen source handed only to the localized wet shader')
 check(T.shaderValue('wet.fx', 'gTun', 1) is not None and T.shaderValue('wet.fx', 'gTun', 4) is not None, 'tunnel volume handed to the wet shader')
 check(world(T, 'fog') == 380 and world(T, 'far') == 1200, 'fog 380 m, far clip 1200 m')
-check(T.weather == 8 and T.hour == 0 and T.minute == 30, 'weather 8 (rain storm), clock 00:30')
+check(T.weather == 0 and T.hour == 12 and T.minute == 0, 'clear weather, dry roads, clock 12:00')
 check(world(T, 'clouds') is False and world(T, 'birds') is False and world(T, 'ambient_general') is False, 'clouds, birds and vanilla ambience off')
 check(world(T, 'occlusions') is False, 'vanilla occlusions off')
-check(abs(float(world(T, 'rain')) - 1.0) < 1e-6, 'rain level 1 outside the tunnel')
+check(abs(float(world(T, 'rain')) - 0.0) < 1e-6, 'default dry daylight starts with no rain')
 check(world(T, 'sky') is not None, 'sky gradient set')
 check(T.chatContains('objects.'), 'welcome message printed')
 check(not errors(T), 'no handler / timer error during loading: %s' % errors(T)[:2])
@@ -163,28 +164,20 @@ adv(T, 800, 16)
 per_frame = int(T.lines3d) / 50.0
 check(int(T.lines3d) > 0, 'glow billboards drawn near the spawn point (%.0f per frame)' % per_frame)
 check(per_frame <= 340, 'at most 340 billboards per frame')
-check(int(T.draws) >= 40, 'the grade is drawn every frame (%d)' % int(T.draws))
-check(int(T.screenUpdates()) >= 40, 'screen source updated every frame')
+check(T.handlerCount('client', 'onClientHUDRender') == 0, 'no fullscreen post-processing pass is installed')
+check(int(T.screenUpdates()) >= 40, 'wet-material screen source updated every frame')
 T.cmd('client', 'ncinfo')
 check('glow sprites drawn=' in T.lastChat() and 'objects=%d' % N_OBJECTS in T.lastChat(), '/ncinfo: ' + T.lastChat()[:150])
 
 print('\n== commands: /ncfx /ncrain /nctime /ncview ==')
-T.cmd('client', 'ncfx')                       # 2 -> 0
-check(T.alive('shader') == 0 and T.handlerCount('client', 'onClientHUDRender') == 0 and T.alive('screensource') == 0, '/ncfx cycles to OFF: shaders, screen source and handler gone')
+T.cmd('client', 'ncfx')                       # 1 -> 0
+check(T.alive('shader') == 0 and T.handlerCount('client', 'onClientHUDRender') == 0 and T.alive('screensource') == 0, '/ncfx turns off the wet shader and releases its screen source')
 T.cmd('client', 'ncfx')                       # 0 -> 1
-check(T.alive('shader') == 1 and T.shaderOf('post.fx') is not None, '/ncfx -> grade only')
-T.cmd('client', 'ncfx')                       # 1 -> 2
-check(T.alive('shader') == 2 and int(T.shaderTextures('wet.fx')) == 9, '/ncfx -> grade + wet ground')
+check(T.alive('shader') == 1 and int(T.shaderTextures('wet.fx')) == 9, '/ncfx enables the localized wet-road shader')
+T.cmd('client', 'ncfx', '0')
+check(T.alive('shader') == 0 and T.shaderOf('wet.fx') is None, '/ncfx 0 removes the wet shader from every texture')
 T.cmd('client', 'ncfx', '1')
-check(T.alive('shader') == 1 and T.shaderOf('wet.fx') is None, '/ncfx 1 removes the wet shader from every texture')
-T.cmd('client', 'ncfx', '2')
-T.cmd('client', 'ncexposure', '1.5')
-check(abs(float(T.shaderValue('post.fx', 'gGain')) - 1.5) < 1e-6, '/ncexposure 1.5 reaches the grade shader')
-T.cmd('client', 'ncexposure', '99')
-check(abs(float(T.shaderValue('post.fx', 'gGain')) - 4.0) < 1e-6, '/ncexposure is clamped to 4')
-T.cmd('client', 'ncexposure')
-check('usage' in T.lastChat(), '/ncexposure without value prints the usage')
-T.cmd('client', 'ncexposure', '1')
+check(T.alive('shader') == 1 and int(T.shaderTextures('wet.fx')) == 9, '/ncfx 1 reapplies the wet shader')
 T.cmd('client', 'ncrain', '0.5')
 adv(T, 100)
 check(abs(float(world(T, 'rain')) - 0.5) < 1e-6 and abs(float(T.shaderValue('wet.fx', 'gWet')) - 0.5) < 1e-6, '/ncrain 0.5 -> rain level and gWet')
@@ -319,7 +312,7 @@ T.cmd('server', 'nchide')
 px, py, pz = xyz(T, T.player)
 check(pz < 100 and abs(px - 2495) < 1, 'players in the sky city are sent to a safe place on the ground')
 check(T.alive('object') == 0 and T.alive('water') == 0 and T.alive('sound') == 0 and T.alive('texture') == 0, 'objects, water, sounds, textures destroyed')
-check(T.alive('shader') == 0 and T.alive('screensource') == 0, 'shaders and screen source destroyed')
+check(T.alive('shader') == 0 and T.alive('screensource') == 0, 'wet shader and its screen source destroyed')
 check(all(T.handlerCount('client', e) == 0 for e in ('onClientRender', 'onClientHUDRender', 'onClientPreRender', 'onClientCursorMove')), 'render handlers removed')
 check(int(T.liveTimers('client')) == 1, 'only the (idle) safety-net timer is left (%d)' % int(T.liveTimers('client')))
 check(world(T, 'birds') is True and world(T, 'clouds') is True and world(T, 'ambient_general') is True and world(T, 'occlusions') is True, 'birds, clouds, ambience, occlusions restored')
@@ -400,14 +393,14 @@ x, y, z = xyz(T, T.firstObject())
 check(T.alive('object') == N_OBJECTS and abs(x - (100 + ob1[2])) < 1e-3, 'one set of objects, at the second anchor')
 check(not errors(T), 'no error: %s' % errors(T)[:2])
 
-print('\n== failure injection: shader compile failure / fallback technique ==')
+print('\n== failure injection: wet shader compile failure / fallback technique ==')
 for mode in ('fail', 'fallback'):
     lua, T = boot()
     T.shaderMode = mode
     T.cmd('server', 'ncshow')
     check(wait_for(T, lambda: T.alive('object') >= N_OBJECTS, 60000), '[%s] the city is shown without shaders' % mode)
     adv(T, 2000)
-    check(T.alive('shader') == 0 and T.handlerCount('client', 'onClientHUDRender') == 0, '[%s] no shader, no HUD handler left' % mode)
+    check(T.alive('shader') == 0 and T.handlerCount('client', 'onClientHUDRender') == 0 and T.alive('screensource') == 0, '[%s] no shader, screen source, or HUD handler left' % mode)
     T.cmd('client', 'ncfx')
     check('could not compile' in T.lastChat(), '[%s] /ncfx tells the user' % mode)
     adv(T, 500)
@@ -421,8 +414,9 @@ T.cmd('client', 'ncfx', '0')
 T.shaderMode = 'ok'
 orig = lua.eval('function() local f = T.C.dxCreateShader T.C.dxCreateShader = function(p, ...) if p == "wet.fx" then return false, "x" end return f(p, ...) end end')
 orig()
-T.cmd('client', 'ncfx', '2')
-check(T.alive('shader') == 1 and T.shaderOf('post.fx') is not None and 'grade only' in T.lastChat(), 'wet.fx failing leaves the grade running and says so')
+T.cmd('client', 'ncfx', '1')
+check(T.alive('shader') == 0 and T.alive('screensource') == 0 and 'wet.fx could not compile' in T.lastChat(), 'wet.fx failure leaves the city playable and explains the missing sheen')
+check(not errors(T), 'wet.fx failure raised no handler error')
 
 print('\n== failure injection: ground collision never appears ==')
 lua, T = boot()

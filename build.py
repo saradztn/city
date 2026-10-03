@@ -22,6 +22,7 @@ OUT = os.path.abspath(os.path.join(HERE, '..'))
 RES = os.path.join(OUT, 'resource', 'NightCity')
 TXD_OF = {'g': 'ncg', 'b': 'ncb', 'i': 'nci', 's': 'nci'}
 ALPHA_MATS = {'nc_glow', 'nc_steam'}
+RUNTIME_FILES = ('client.lua', 'server.lua', 'tour.lua', 'wet.fx')
 
 
 def weld(pos, nrm, uv, dcol, tris):
@@ -107,6 +108,16 @@ def main():
     t0 = time.time()
     for d in ('files', 'files/audio', 'files/fx'):
         os.makedirs(os.path.join(RES, d), exist_ok=True)
+    for name in RUNTIME_FILES:
+        src = os.path.join(HERE, 'runtime', name)
+        if not os.path.isfile(src):
+            raise FileNotFoundError('missing runtime source: ' + src)
+        shutil.copy2(src, os.path.join(RES, name))
+    # The fullscreen post-processing shader was deliberately removed: the city
+    # should use MTA's existing renderer, not a second screen-wide graphics pass.
+    stale_grade = os.path.join(RES, 'post.fx')
+    if os.path.exists(stale_grade):
+        os.remove(stale_grade)
     for f in os.listdir(os.path.join(RES, 'files')):
         p = os.path.join(RES, 'files', f)
         if os.path.isfile(p):
@@ -213,12 +224,12 @@ def main():
     sl.append('}')
     open(os.path.join(RES, 'sprites.lua'), 'w').write('\n'.join(sl) + '\n')
     print('   %d objects, %d sprites' % (len(plan.placements), len(sp_rows)))
-    fx = [f for f in ('wet.fx', 'post.fx') if os.path.exists(os.path.join(RES, f))]
+    fx = [f for f in ('wet.fx',) if os.path.exists(os.path.join(RES, f))]
     scripts = [('models.lua', 'client'), ('layout.lua', 'client'), ('sprites.lua', 'client'), ('client.lua', 'client'), ('tour.lua', 'client'),
                ('layout.lua', 'server'), ('server.lua', 'server')]
     mx = ['<!-- Created by: Arena.ai Agent Mode (AI) - NightCity MTA:SA resource -->', '<meta>',
           '    <info author="Arena.ai Agent Mode" name="NightCity" version="1.0.0" type="script"',
-          '          description="NightCity - a procedural American metropolis with varied districts, waterfront, highways, and day-to-night lighting. Weather and time remain configurable. Commands: /ncshow /nchide /nctour /ncfree /ncview /ncfx /ncexposure /ncrain /nctime /ncz /ncempty /ncinfo" />',
+          '          description="NightCity - a procedural American metropolis with varied districts, waterfront, highways, and day-to-night lighting. Weather and time remain configurable. Commands: /ncshow /nchide /nctour /ncfree /ncview /ncfx (0 off, 1 wet roads) /ncrain /nctime /ncz /ncempty /ncinfo" />',
           '    <min_mta_version client="1.6.0-9.22676" />', '']
     for s, t in scripts:
         if os.path.exists(os.path.join(RES, s)):

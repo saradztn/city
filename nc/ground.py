@@ -394,7 +394,8 @@ def build_cell(spec):
         for k, (cx, cy, rz) in enumerate(signal_corners if major else (signal_corners[0], signal_corners[2])):
             if not river:
                 M.merge(P.traffic_signal(int(rng.integers(0, 3))), (cx, cy, CURB), rz=rz)
-        if major:
+        if major and not holes:
+            # Keep pavement arrows / pocket paint clear of a cut-and-cover tunnel portal.
             _turn_pocket_markings(M, (xl, xr, yb, yt, x0, x1, y0, y1), cls)
         # furniture along the pavement edge towards the block
         gap = SIDE['S'] * 0.5 + 0.3

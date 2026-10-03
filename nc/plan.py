@@ -20,7 +20,7 @@ YC = ['S', 'S', 'S', 'S', 'S', 'S', 'S', 'A', 'A', 'S', 'A', 'S', 'S']  # 13 str
 RIVER_J = 5
 HERO = (6, 8)
 SEA_DEPTH = 100.0
-SEA_OFFSET = 10.0  # leave the south arterial landward of a short bay seawall
+SEA_OFFSET = 0.0   # the bay water/seabed meets the outer street line at the seawall
 # Original fictional Westhaven plan: rows j = 11 (north) ... 0 (south), printed top = north.
 # C downtown, K landmark, E mixed-use, M main street, R apartments, S suburbs, H hillside homes,
 # F roadside retail, G parking, W waterfront, I working port, Q hillside park, B bayfront park, ~ river.
@@ -586,7 +586,7 @@ def build_plan():
     # Each follows arterial/collector centerlines, with rounded turns and a smooth 12 m vertical profile.
     ramp_specs = [
         ('eastbound_surface_entry', [(X[2], Y[7] - 6.6), (X[3], Y[7] - 6.6), (X[3], Y[8] - 6.6), (X[3] + 26.0, Y[8] - 6.6)], [0, 12, 26, 0]),
-        ('westbound_surface_entry', [(X[10], Y[9] + 6.6), (X[9], Y[9] + 6.6), (X[9], Y[8] + 6.6), (X[9] - 26.0, Y[8] + 6.6)], [0, 18, 26, 0]),
+        ('westbound_surface_entry', [(X[10], Y[9] + 6.6), (X[10], Y[8] + 6.6), (X[10] - 26.0, Y[8] + 6.6)], [0, 18, 0]),
         ('eastbound_surface_exit', [(X[9], Y[8] - 6.6), (X[10] - 6.6, Y[8] - 6.6), (X[10] - 6.6, Y[7])], [0, 15, 0]),
         ('westbound_surface_exit', [(X[3] + 42.0, Y[8] + 6.6), (X[3], Y[8] + 6.6), (X[3], Y[9]), (X[2] + 6.6, Y[9])], [0, 24, 18, 0]),
     ]
@@ -691,7 +691,10 @@ def build_plan():
     ] + tunnel_tour(tg) + [
         (coast_x - 140.0, coast_y - 45.0, 36.0, coast_x, coast_y, 0.5, 14.0),     # bayfront boulevard and ocean edge
         (hill_x - 110.0, hill_y - 52.0, 42.0, hill_x, hill_y, 7.0, 14.0),          # ridge drive through parkland
+        (tg['x'] - 100.0, tg['y_cov1'] + 60.0, 64.0, tg['x'], tg['y_cov1'] + 60.0, 22.0, 8.0),  # circle north of the tunnel roof
+        (tg['x'] + 100.0, tg['y_cov1'] + 60.0, 58.0, tg['x'] + 180.0, tg['y_cov1'] + 60.0, 12.0, 10.0),
         (X[ns['line']] + 115.0, Y[ew['line']] - 95.0, 44.0, X[ns['line']], Y[ew['line']], 17.0, 14.0),  # multilevel interchange
+        (tg['x'] + 100.0, tg['y_cov0'] - 30.0, 48.0, tg['x'], tg['y_cov0'] - 30.0, 10.0, 8.0),   # leave the tunnel corridor before turning back
         (X[3], Y[4] - 100.0, 140.0, cx0, cy0, 40.0, 10.0),                         # final skyline view
     ]
     plan.grid = dict(X=X, Y=Y, W=W, D=D)

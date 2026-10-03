@@ -175,7 +175,7 @@ def road_hwy(h, w, seed):
     return _road_oneway(h, w, seed + 260, 12.0, 3, tone=0.17)
 
 
-@reg('nc_hwy_sign', 768, 256)
+@reg('nc_hwy_sign', 1024, 256)
 def hwy_sign(h, w, seed):
     """Reflective green freeway sign face with a white border, route badge, and destination/exit glyphs."""
     X, Y = coords(h, w)
