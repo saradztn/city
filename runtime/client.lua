@@ -102,6 +102,16 @@ local function loadOneModel(index)
     modelIds[index] = id
     table.insert(allocatedIds, id)
 
+    -- MTA requires replacements in COL -> TXD -> DFF order; reversing this can reject DFFs.
+    local col = engineLoadCOL("files/" .. data.name .. ".col")
+    if not isElement(col) then
+        return false
+    end
+    table.insert(modelElements, col)
+    if not engineReplaceCOL(col, id) then
+        return false
+    end
+
     local txd = txdCache[data.txd]
     if not isElement(txd) then
         txd = engineLoadTXD("files/" .. data.txd .. ".txd")
@@ -110,24 +120,16 @@ local function loadOneModel(index)
         end
         txdCache[data.txd] = txd
     end
-    local col = engineLoadCOL("files/" .. data.name .. ".col")
-    if not isElement(col) then
+    if not engineImportTXD(txd, id) then
         return false
     end
-    table.insert(modelElements, col)
+
     local dff = engineLoadDFF("files/" .. data.name .. ".dff")
     if not isElement(dff) then
         return false
     end
     table.insert(modelElements, dff)
-
-    if not engineImportTXD(txd, id) then
-        return false
-    end
-    if not engineReplaceCOL(col, id) then
-        return false
-    end
-    if not engineReplaceModel(dff, id, true) then
+    if not engineReplaceModel(dff, id, false) then
         return false
     end
     engineSetModelLODDistance(id, tonumber(data.dist) or 500)

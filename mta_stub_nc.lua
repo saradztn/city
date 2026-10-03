@@ -1,6 +1,6 @@
 -- Created by: Arena.ai Agent Mode (AI) - strict headless MTA:SA API model used by mta_lua_test_nc.py (it runs the REAL client / server Lua)
 -- Strict on purpose: unknown globals raise, every API call validates its argument count and types like MTA's CScriptArgReader,
--- elements die when destroyed, models must be requested -> TXD -> COL -> DFF before an object may use them, events must be added
+-- elements die when destroyed, model replacements must run COL -> TXD -> DFF before an object may use them, events must be added
 -- before they are handled / triggered remotely, command handlers get the real MTA argument lists (client: name, args; server: player, name, args).
 math.atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
 
@@ -272,20 +272,26 @@ def(C, "engineLoadCOL", "s", loader("col"))
 def(C, "engineImportTXD", "en", function(txd, id)
     local m = T.models[id]
     if txd.kind ~= "txd" or not m then error("engineImportTXD: bad txd or unknown model", 2) end
+    if not m.col then error("engineReplaceCOL must run before engineImportTXD", 2) end
     if m.dff then error("engineImportTXD must run before engineReplaceModel", 2) end
     m.txd = true
+    m.order = m.order .. "T"
     return true
 end)
 def(C, "engineReplaceCOL", "en", function(col, id)
     local m = T.models[id]
     if col.kind ~= "col" or not m then error("engineReplaceCOL: bad col or unknown model", 2) end
+    if m.txd then error("engineReplaceCOL must run before engineImportTXD", 2) end
     m.col = true
+    m.order = m.order .. "C"
     return true
 end)
 def(C, "engineReplaceModel", "en|b", function(dff, id)
     local m = T.models[id]
     if dff.kind ~= "dff" or not m then error("engineReplaceModel: bad dff or unknown model", 2) end
+    if not m.col or not m.txd then error("COL and TXD replacements must run before engineReplaceModel", 2) end
     m.dff = true
+    m.order = m.order .. "D"
     return true
 end)
 def(C, "engineSetModelLODDistance", "nn|b", function(id, d)
@@ -462,7 +468,7 @@ function T.elementProp(e, k) return e[k] end
 function T.objectsFrozen() local n = 0 for _, e in ipairs(T.elems) do if e.kind == "object" and e.alive and e.frozen then n = n + 1 end end return n end
 function T.objectsNoCollision() local n = 0 for _, e in ipairs(T.elems) do if e.kind == "object" and e.alive and e.collisions == false then n = n + 1 end end return n end
 function T.objectsLowLOD() local n = 0 for _, e in ipairs(T.elems) do if e.kind == "object" and e.alive and e.lowLOD then n = n + 1 end end return n end
-function T.modelsComplete() local n = 0 for _, m in pairs(T.models) do if m.txd and m.col and m.dff then n = n + 1 end end return n end
+function T.modelsComplete() local n = 0 for _, m in pairs(T.models) do if m.order == "CTD" then n = n + 1 end end return n end
 function T.firstObject() for _, e in ipairs(T.elems) do if e.kind == "object" and e.alive then return e end end end
 function T.shaderOf(path) for _, e in ipairs(T.elems) do if e.kind == "shader" and e.alive and e.path == path then return e end end end
 function T.shaderValue(path, name, i) local sh = T.shaderOf(path) return sh and sh.values[name] and sh.values[name][i or 1] end

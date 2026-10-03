@@ -134,7 +134,7 @@ check(bool(T.player.frozen), 'the player is held in the air while the city loads
 ok = wait_for(T, lambda: T.alive('object') >= N_OBJECTS, 120000)
 check(ok, 'all %d objects created' % N_OBJECTS)
 check(int(T.nmodels) == N_MODELS, '%d model ids allocated (one per model)' % N_MODELS)
-check(int(T.modelsComplete()) == N_MODELS, 'every model went txd -> col -> dff')
+check(int(T.modelsComplete()) == N_MODELS, 'every model went COL -> TXD -> DFF')
 check(int(T.objectsFrozen()) == N_OBJECTS, 'all objects are frozen (no physics)')
 check(int(T.objectsLowLOD()) == 0, 'city objects are high-LOD so their COL surfaces remain solid')
 n_sky = sum(1 for i in range(1, N_OBJECTS + 1) if G('NC_OBJECTS')[i][6] == 'skyline')
