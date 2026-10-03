@@ -29,23 +29,24 @@ def weld(pos, nrm, uv, dcol, tris):
     key = np.concatenate([np.round(pos * 1000).astype(np.int64), np.round(nrm * 60).astype(np.int64), np.round(uv * 4000).astype(np.int64), dcol.astype(np.int64)], axis=1)
     _, first, inv = np.unique(key, axis=0, return_index=True, return_inverse=True)
     inv = inv.reshape(-1)
-    return pos[first], nrm[first], uv[first], dcol[first], inv[tris]
+    return pos[first], nrm[first], uv[first], dcol[first], inv[tris], first
 
 
-def build_geometry(pos, nrm, uv, tris, tmat, col):
+def build_geometry(pos, nrm, uv, tris, tmat, col, night_col):
     area = np.linalg.norm(np.cross(pos[tris[:, 1]] - pos[tris[:, 0]], pos[tris[:, 2]] - pos[tris[:, 0]]), axis=1)
     keep = area > 1e-9
     tris, tmat = tris[keep], tmat[keep]
     used, inv = np.unique(tris.reshape(-1), return_inverse=True)
     t2 = inv.reshape(-1, 3)
     c8 = np.concatenate([(col[used] * 255 + 0.5).astype(np.uint8), np.full((len(used), 1), 255, np.uint8)], 1)
-    p, n, u, d, t3 = weld(pos[used], nrm[used], uv[used], c8, t2)
+    n8 = np.concatenate([(night_col[used] * 255 + 0.5).astype(np.uint8), np.full((len(used), 1), 255, np.uint8)], 1)
+    p, n, u, d, t3, first = weld(pos[used], nrm[used], uv[used], c8, t2)
     mats = sorted(set(tmat.tolist()))
     remap = {m: i for i, m in enumerate(mats)}
     tm = np.array([remap[m] for m in tmat], np.int64)
     order = np.argsort(tm, kind='stable')
     assert len(p) < 65000, len(p)
-    g = dict(pos=p, nrm=n, uv=u, tris=t3[order], tri_mat=tm[order], prelit=d, night=d.copy(), dyn_light=False)
+    g = dict(pos=p, nrm=n, uv=u, tris=t3[order], tri_mat=tm[order], prelit=d, night=n8[first], dyn_light=False)
     return g, mats
 
 
@@ -135,7 +136,9 @@ def main():
         M, C, meta = registry.build_model(plan, name)
         pos, nrm, uv, tris, tmat, em, tn, mats = bake.flatten(M)
         col = bake.bake(pos, nrm, em, tn, M.lights, amb=float(meta.get('amb', 1.0)))
-        g, used = build_geometry(pos, nrm, uv, tris, tmat, col)
+        # Separate prelight sets let GTA/MTA blend into a real night scene; authored fixture pools remain in both.
+        night_col = bake.bake(pos, nrm, em, tn, M.lights, amb=float(meta.get('night_amb', 0.35)))
+        g, used = build_geometry(pos, nrm, uv, tris, tmat, col, night_col)
         mnames = [mats[i] for i in used]
         assert not (set(mnames) & ALPHA_MATS), (name, mnames)
         lo, hi = pos.min(0), pos.max(0)

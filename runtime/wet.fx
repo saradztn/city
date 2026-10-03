@@ -69,8 +69,8 @@ float4 PSMain(PSInput input) : COLOR0
     float2 screenUV = input.ScreenPos.xy / max(abs(input.ScreenPos.w), 0.0001);
     screenUV = saturate(screenUV * float2(0.5, -0.5) + 0.5);
     float3 reflection = tex2D(ScreenSampler, screenUV).rgb;
-    baseColor.rgb = lerp(baseColor.rgb, reflection, wetAmount * 0.08);
-    baseColor.rgb *= lerp(1.0, 0.84, wetAmount);
+    baseColor.rgb = lerp(baseColor.rgb, reflection, wetAmount * 0.16);
+    baseColor.rgb *= lerp(1.0, 0.90, wetAmount);
     return baseColor;
 }
 

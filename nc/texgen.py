@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # texgen.py - procedural materials, part 1: road / pavement / concrete / metal.
 # fn(h, w, seed) -> PBR.  All maps tile seamlessly in both directions unless the texture is a road cross-section
-# (those tile along the road only).  Authored in sRGB; asphalt is genuinely dark (sRGB 0.14-0.25 = 2-5 % reflectance).
+# (those tile along the road only). Authored in sRGB; asphalt stays medium-dark but remains readable after GTA vertex prelight.
 # -----------------------------------------------------------------------------
 import numpy as np
 from lib.noise import worley, smooth
@@ -26,7 +26,7 @@ def _bar(m, c, wdt, px):
 # ---------------------------------------------------------------------------------------------
 # asphalt
 # ---------------------------------------------------------------------------------------------
-def _asphalt_core(h, w, seed, tone=0.20, crack=0.5, patches=7, oil=0.5):
+def _asphalt_core(h, w, seed, tone=0.32, crack=0.5, patches=7, oil=0.5):
     n1 = fbm(h, w, seed, 2.6)
     n2 = fbm(h, w, seed + 1, 1.5)
     n3 = fbm(h, w, seed + 2, 0.3)
@@ -71,7 +71,7 @@ def asphalt(h, w, seed):
 
 @reg('nc_alley', 512, 512)
 def alley(h, w, seed):
-    alb, rough, hgt, o = _asphalt_core(h, w, seed + 140, tone=0.235, crack=0.8, patches=5, oil=0.75)
+    alb, rough, hgt, o = _asphalt_core(h, w, seed + 140, tone=0.32, crack=0.8, patches=5, oil=0.75)
     X, Y = coords(h, w)
     # drain gutter line + rust stained grate marks
     gut = rect_aa(X, Y, 0.0, 0.47, 1.0, 0.53, 1.0 / w, 1.0 / h)
@@ -80,7 +80,7 @@ def alley(h, w, seed):
     return PBR(alb * 0.9, rough * 0.7, None, hgt)
 
 
-def _road(h, w, seed, width_m, lanes, median, edge_line, center_double, hwy=False, tone=0.20):
+def _road(h, w, seed, width_m, lanes, median, edge_line, center_double, hwy=False, tone=0.32):
     alb, rough, hgt, o = _asphalt_core(h, w, seed, tone=tone)
     X, Y = coords(h, w)
     mx = X * width_m
@@ -134,16 +134,16 @@ def road_ave(h, w, seed):
 
 @reg('nc_road_str', 1024, 512)
 def road_str(h, w, seed):
-    return _road(h, w, seed + 230, 14.0, 2, 0.0, False, True, tone=0.215)
+    return _road(h, w, seed + 230, 14.0, 2, 0.0, False, True, tone=0.32)
 
 
 @reg('nc_road_local', 1024, 512)
 def road_local(h, w, seed):
     # Two-lane neighborhood street: restrained edge paint and a worn double-yellow centre line.
-    return _road(h, w, seed + 245, 8.0, 1, 0.0, True, True, tone=0.225)
+    return _road(h, w, seed + 245, 8.0, 1, 0.0, True, True, tone=0.32)
 
 
-def _road_oneway(h, w, seed, width_m, lanes, tone=0.17):
+def _road_oneway(h, w, seed, width_m, lanes, tone=0.30):
     """One carriageway: realistic US lane widths, broken white dividers, and no spurious centre line."""
     alb, rough, hgt, _ = _asphalt_core(h, w, seed, tone=tone, crack=0.32, patches=5, oil=0.28)
     X, Y = coords(h, w)
@@ -172,7 +172,7 @@ def _road_oneway(h, w, seed, width_m, lanes, tone=0.17):
 @reg('nc_road_hwy', 1024, 512)
 def road_hwy(h, w, seed):
     # Each elevated carriageway is 12 m wide and carries three lanes in one direction.
-    return _road_oneway(h, w, seed + 260, 12.0, 3, tone=0.17)
+    return _road_oneway(h, w, seed + 260, 12.0, 3, tone=0.30)
 
 
 @reg('nc_hwy_sign', 1024, 256)

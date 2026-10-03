@@ -294,11 +294,11 @@ def(C, "engineSetModelLODDistance", "nn|b", function(id, d)
     T.models[id].lod = d
     return true
 end)
-def(C, "createObject", "nnnn|nnnb", function(model, x, y, z, rx, ry, rz)
+def(C, "createObject", "nnnn|nnnb", function(model, x, y, z, rx, ry, rz, isLowLOD)
     local m = T.models[model]
     if not m then return false end
     if not (m.txd and m.col and m.dff) then error("createObject: model " .. model .. " is not completely loaded (txd/col/dff)", 2) end
-    return newEl("object", { model = model, x = x, y = y, z = z, rx = rx or 0, ry = ry or 0, rz = rz or 0, frozen = false, collisions = true }, resourceRoot)
+    return newEl("object", { model = model, x = x, y = y, z = z, rx = rx or 0, ry = ry or 0, rz = rz or 0, lowLOD = isLowLOD == true, frozen = false, collisions = true }, resourceRoot)
 end)
 
 -- water
@@ -400,6 +400,7 @@ def(C, "resetFogDistance", "", function() T.world.fog = nil return true end)
 def(C, "setFarClipDistance", "n", function(d) rangeCheck("setFarClipDistance", d, 5, 20000) T.world.far = d return true end)
 def(C, "resetFarClipDistance", "", function() T.world.far = nil return true end)
 def(C, "setRainLevel", "n", function(l) rangeCheck("setRainLevel", l, 0, 1) T.world.rain = l return true end)
+def(C, "getRainLevel", "", function() return T.world.rain or (T.weather == 8 and 0.5 or 0) end)
 def(C, "resetRainLevel", "", function() T.world.rain = nil return true end)
 def(C, "setWindVelocity", "nnn", function(x, y, z) T.world.wind = { x, y, z } return true end)
 def(C, "resetWindVelocity", "", function() T.world.wind = nil return true end)
@@ -460,6 +461,7 @@ function T.setCam(x, y, z, lx, ly, lz) T.cam = { x, y, z, lx or x, ly or (y + 1)
 function T.elementProp(e, k) return e[k] end
 function T.objectsFrozen() local n = 0 for _, e in ipairs(T.elems) do if e.kind == "object" and e.alive and e.frozen then n = n + 1 end end return n end
 function T.objectsNoCollision() local n = 0 for _, e in ipairs(T.elems) do if e.kind == "object" and e.alive and e.collisions == false then n = n + 1 end end return n end
+function T.objectsLowLOD() local n = 0 for _, e in ipairs(T.elems) do if e.kind == "object" and e.alive and e.lowLOD then n = n + 1 end end return n end
 function T.modelsComplete() local n = 0 for _, m in pairs(T.models) do if m.txd and m.col and m.dff then n = n + 1 end end return n end
 function T.firstObject() for _, e in ipairs(T.elems) do if e.kind == "object" and e.alive then return e end end end
 function T.shaderOf(path) for _, e in ipairs(T.elems) do if e.kind == "shader" and e.alive and e.path == path then return e end end end

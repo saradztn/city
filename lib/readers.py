@@ -150,7 +150,11 @@ def read_dff(path):
         assert p == len(bm) and sum(len(i) for _, i in meshes) == tot
         g['binmesh'] = meshes
         nc = gex.find(0x253F2F9)
-        g['night'] = np.frombuffer(nc[0].data, np.uint8, nv * 4, 4).reshape(nv, 4) if nc else None
+        if nc:
+            assert len(nc) == 1 and len(nc[0].data) == nv * 4, 'night vertex colour plugin must be exactly RGBA per vertex'
+            g['night'] = np.frombuffer(nc[0].data, np.uint8).reshape(nv, 4)
+        else:
+            g['night'] = None
         geoms.append(g)
     res['geoms'] = geoms
     atoms = []

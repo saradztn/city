@@ -190,6 +190,14 @@ for p in sorted(glob.glob(os.path.join(FILES, '*.txd'))):
     check(not bad, '%s: %d textures, power-of-two DXT1 with a full mip chain, names < 24 chars %s' % (os.path.basename(p), len(names), bad[:4]))
     mx = max(max(x['w'], x['h']) for x in t['textures'])
     ok('%s: %d textures, largest %d px, %.2f MB' % (os.path.basename(p), len(names), mx, os.path.getsize(p) / 1048576))
+road_luma = {}
+for textures in TXD.values():
+    for tex_name in ('nc_asphalt', 'nc_road_ave', 'nc_road_str', 'nc_road_local', 'nc_road_hwy'):
+        if tex_name in textures:
+            rgb_ = readers.decode_texture(textures[tex_name]).astype(float)
+            road_luma[tex_name] = float(np.median(rgb_[..., 0] * 0.2126 + rgb_[..., 1] * 0.7152 + rgb_[..., 2] * 0.0722))
+check(len(road_luma) == 5 and all(v >= 65.0 for v in road_luma.values()),
+      'road base textures are not crushed to black after DXT compression (median luminance %s)' % {k: round(v, 1) for k, v in road_luma.items()})
 used_tex = set()
 
 # ====================================================================================================================================
@@ -197,7 +205,7 @@ section('models (DFF / COL)')
 FORBID = set('car cars vehicle vehicles bike bikes bicycle motorbike motorcycle truck trucks bus taxi van ped peds person people human humans man woman men women child '
              'pedestrian crowd animal animals dog dogs cat cats bird birds crow rat rats horse pigeon gull zombie drone drones aircar hovercar skimmer plane helicopter'.split())
 tot_v = tot_t = 0
-stats = dict(bad_wind=0, zero_n=0, dup_same=0, nan=0, badidx=0, big_uv=0, maxv=0)
+stats = dict(bad_wind=0, zero_n=0, dup_same=0, nan=0, badidx=0, big_uv=0, maxv=0, night_missing=0, night_same=0)
 col_stats = dict(maxv=0, maxf=0)
 BBOX = {}
 for i, m in enumerate(MODELS):
@@ -206,6 +214,10 @@ for i, m in enumerate(MODELS):
     g = d['geoms'][0]
     P, N, UV, T, tm = g['pos'].astype(float), g['nrm'].astype(float), g['uv'].astype(float), g['tris'], g['tri_mat']
     mats = [mm['tex']['name'] for mm in g['materials']]
+    if g.get('night') is None or g['night'].shape != g['prelit'].shape:
+        stats['night_missing'] += 1
+    elif np.array_equal(g['night'], g['prelit']):
+        stats['night_same'] += 1
     tot_v += len(P)
     tot_t += len(T)
     stats['maxv'] = max(stats['maxv'], len(P))
@@ -259,6 +271,7 @@ check(stats['nan'] == 0, 'all vertex data is finite')
 check(stats['badidx'] == 0, 'triangle / material indices are in range')
 check(stats['bad_wind'] == 0, 'triangle winding agrees with the vertex normals (%d disagreeing)' % stats['bad_wind'])
 check(stats['zero_n'] == 0, 'no zero-length vertex normals (%d)' % stats['zero_n'])
+check(stats['night_missing'] == 0 and stats['night_same'] < len(MODELS), 'night vertex-colour arrays are present, correctly sized and actually dim the city (%d missing, %d unchanged)' % (stats['night_missing'], stats['night_same']))
 check(stats['dup_same'] == 0, 'no two coincident triangles with the same facing (would z-fight): %d' % stats['dup_same'])
 ok('%d models, %d vertices, %d triangles; largest model %d vertices' % (len(MODELS), tot_v, tot_t, stats['maxv']))
 allt = {(t, n) for t, d in TXD.items() for n in d}

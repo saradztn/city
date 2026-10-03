@@ -12,6 +12,7 @@ local loadingModels = false
 local modelsReady = false
 local cityVisible = false
 local worldModified = false
+local savedWeather, savedRainLevel = nil, nil
 local verticalOffset = 0
 local cityAnchorX, cityAnchorY, cityAnchorZ = 0, 0, 900
 local cityObjects, cityWater, citySounds = {}, {}, {}
@@ -19,6 +20,7 @@ local ambienceTimer, groundProbeTimer, safetyTimer = nil, nil, nil
 local groundProbeStart, groundProbeReason = 0, "show"
 local playerHeldByCity = false
 local wantedRain = 0.0
+local rainOverride = false
 local fxMode = 1
 local wetShader, screenSource = nil, nil
 local appliedWetTextures = {}
@@ -140,19 +142,17 @@ end
 
 local function setCityWorld()
     worldModified = true
-    -- Begin with a dry, clear midday; rain and time are user-configurable.
-    setWeather(0)
-    setTime(12, 0)
-    setMinuteDuration(60000)
+    -- Keep MTA's live game clock, weather and timecycle. Forcing noon and a fixed sky
+    -- prevents night from appearing and also overwrites server/map time settings.
+    savedWeather = getWeather()
+    savedRainLevel = getRainLevel()
+    if not rainOverride then
+        wantedRain = math.max(0, math.min(1, tonumber(savedRainLevel) or 0))
+    end
     setRainLevel(wantedRain)
-    setSkyGradient(118, 166, 210, 224, 232, 240)
     setFogDistance(380)
     setFarClipDistance(1200)
     setWindVelocity(0.02, 0.01, 0.0)
-    setCloudsEnabled(false)
-    setBirdsEnabled(false)
-    setAmbientSoundEnabled("general", false)
-    setAmbientSoundEnabled("gunfire", false)
     setOcclusionsEnabled(false)
     setWaterColor(60, 138, 168, 190)
 end
@@ -161,22 +161,25 @@ local function restoreCityWorld()
     if not worldModified then
         return
     end
-    setWeather(0)
-    setTime(12, 0)
-    setMinuteDuration(1000)
-    resetRainLevel()
-    resetSkyGradient()
+    if savedWeather ~= nil then
+        setWeather(savedWeather)
+    end
+    if savedRainLevel ~= nil then
+        setRainLevel(savedRainLevel)
+        wantedRain = math.max(0, math.min(1, tonumber(savedRainLevel) or 0))
+    else
+        resetRainLevel()
+        wantedRain = 0.0
+    end
+    rainOverride = false
     resetFogDistance()
     resetFarClipDistance()
     resetWindVelocity()
     resetHeatHaze()
     resetSunSize()
     resetWaterColor()
-    setCloudsEnabled(true)
-    setBirdsEnabled(true)
-    setAmbientSoundEnabled("general", true)
-    setAmbientSoundEnabled("gunfire", true)
     setOcclusionsEnabled(true)
+    savedWeather, savedRainLevel = nil, nil
     worldModified = false
 end
 
@@ -347,7 +350,8 @@ local function createCityObjects()
         local rz = tonumber(row[5]) or 0
         local data = NC_MODELS[modelIndex]
         if id and data then
-            local object = createObject(id, x, y, z, 0, 0, rz, true)
+            -- The final createObject flag means isLowLOD; low-LOD elements have no collision in MTA.
+            local object = createObject(id, x, y, z, 0, 0, rz, false)
             if isElement(object) then
                 setElementFrozen(object, true)
                 setElementCollisionsEnabled(object, data.col ~= false)
@@ -539,7 +543,6 @@ local function hideCity(resourceStop)
         modelsReady = false
     end
     verticalOffset = 0
-    wantedRain = 0.0
     fxMode = 1
 end
 
@@ -553,7 +556,6 @@ local function showCity(x, y, z)
     end
     cityAnchorX, cityAnchorY, cityAnchorZ = x, y, z
     verticalOffset = 0
-    wantedRain = 0.0
     setElementVelocity(localPlayer, 0, 0, 0)
     setElementFrozen(localPlayer, true)
     playerHeldByCity = true
@@ -643,7 +645,11 @@ local function commandFX(_, value)
     end
     local ok = setFXMode(requested, false)
     if ok then
-        say("rain sheen " .. (fxMode == 1 and "on" or "off") .. " (0 off, 1 on).")
+        if fxMode == 1 then
+            say("wet-road reflections on; use /ncrain 0.6 for visible rain sheen.")
+        else
+            say("wet-road reflections off.")
+        end
     end
 end
 
@@ -654,6 +660,7 @@ local function commandRain(_, value)
         return
     end
     wantedRain = math.max(0, math.min(1, amount))
+    rainOverride = true
     setWeather(wantedRain > 0 and 8 or 0)
     updateAmbience()
     say("rain set to " .. string.format("%.2f", wantedRain) .. ".")
@@ -708,6 +715,7 @@ addCommandHandler("ncview", function(_, point) viewPoint(point) end)
 addCommandHandler("ncinfo", commandInfo)
 
 addEventHandler("onClientResourceStart", resourceRoot, function()
+    wantedRain = math.max(0, math.min(1, tonumber(getRainLevel()) or 0))
     if not safetyTimer or not isTimer(safetyTimer) then
         safetyTimer = setTimer(function()
             if playerHeldByCity and not groundProbeTimer then
