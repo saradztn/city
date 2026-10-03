@@ -5,9 +5,10 @@
 # Everything here is emissive at night: the emission map holds the light (lit rooms, tubes, screens).
 # -----------------------------------------------------------------------------
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 from lib.noise import smooth
 from .texkit import PBR, coords, lerp, rgb, blur, fbm, grain, rect_aa, FONT_B, FONT_R, FONT_M
+from lib.fonts import load_font
 from .texgen import REG, reg
 
 WARM = rgb(1.00, 0.70, 0.40)
@@ -244,10 +245,10 @@ def _storefront(h, w, seed, kind):
         d = ImageDraw.Draw(im)
         txt = WORDS[rng.integers(len(WORDS))]
         fs = int(im.size[1] * 0.62)
-        f = ImageFont.truetype(FONT_B, fs)
+        f = load_font(FONT_B, fs)
         while d.textlength(txt, font=f) > im.size[0] * 0.90 and fs > 8:
             fs -= 2
-            f = ImageFont.truetype(FONT_B, fs)
+            f = load_font(FONT_B, fs)
         d.text((im.size[0] / 2, im.size[1] / 2), txt, font=f, fill=255, anchor='mm')
         tm = np.zeros((h, w), np.float32)
         y0p = int(h * 0.055)
@@ -331,35 +332,35 @@ def _neon_cell(cw, ch, rng, vertical):
     if vertical:
         txt = WORDS[int(rng.integers(len(WORDS)))][:5]
         fs = int(min(cw * S * 0.6, (ch * S - 2 * pad) / max(1, len(txt)) * 0.88))
-        f = ImageFont.truetype(FONT_B, max(8, fs))
+        f = load_font(FONT_B, max(8, fs))
         for k, letter in enumerate(txt):
             d.text((cw * S / 2, pad + (k + 0.5) * (ch * S - 2 * pad) / len(txt)), letter, font=f, fill=255, anchor='mm')
     else:
         txt = WORDS[int(rng.integers(len(WORDS)))]
         if style == 0:
             fs = int(ch * S * 0.43)
-            f = ImageFont.truetype(FONT_B, max(8, fs))
+            f = load_font(FONT_B, max(8, fs))
             while d.textlength(txt, font=f) > cw * S * 0.82 and fs > 9:
                 fs -= 2
-                f = ImageFont.truetype(FONT_B, fs)
+                f = load_font(FONT_B, fs)
             d.text((cw * S / 2, ch * S * 0.50), txt, font=f, fill=255, anchor='mm')
         elif style == 1:
             top = txt[:max(3, len(txt) // 2)]
-            f = ImageFont.truetype(FONT_B, max(8, int(ch * S * 0.30)))
+            f = load_font(FONT_B, max(8, int(ch * S * 0.30)))
             d.text((cw * S / 2, ch * S * 0.39), top, font=f, fill=255, anchor='mm')
-            f2 = ImageFont.truetype(FONT_M, max(8, int(ch * S * 0.18)))
+            f2 = load_font(FONT_M, max(8, int(ch * S * 0.18)))
             d.text((cw * S / 2, ch * S * 0.70), 'OPEN 24 HRS', font=f2, fill=255, anchor='mm')
         elif style == 2:
             cx, cy = cw * S * 0.28, ch * S * 0.50
             r = min(ch * S * 0.20, cw * S * 0.13)
             d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=255, width=wd)
-            f = ImageFont.truetype(FONT_B, max(8, int(ch * S * 0.32)))
+            f = load_font(FONT_B, max(8, int(ch * S * 0.32)))
             d.text((cw * S * 0.64, ch * S * 0.50), txt[:8], font=f, fill=255, anchor='mm')
         else:
-            f = ImageFont.truetype(FONT_B, max(8, int(ch * S * 0.35)))
+            f = load_font(FONT_B, max(8, int(ch * S * 0.35)))
             d.text((cw * S / 2, ch * S * 0.39), txt[:10], font=f, fill=255, anchor='mm')
             d.line([(pad, ch * S * 0.68), (cw * S - pad, ch * S * 0.68)], fill=255, width=wd)
-            d.text((cw * S / 2, ch * S * 0.82), 'OPEN' if rng.random() < 0.5 else '24/7', font=ImageFont.truetype(FONT_M, max(8, int(ch * S * 0.18))), fill=255, anchor='mm')
+            d.text((cw * S / 2, ch * S * 0.82), 'OPEN' if rng.random() < 0.5 else '24/7', font=load_font(FONT_M, max(8, int(ch * S * 0.18))), fill=255, anchor='mm')
     m1 = np.asarray(mask.resize((cw, ch), Image.LANCZOS), np.float32) / 255.0
     m2 = np.asarray(frame.resize((cw, ch), Image.LANCZOS), np.float32) / 255.0 * (1.0 if use_frame else 0.0)
     return m1, m2, col, col2
@@ -455,17 +456,17 @@ def _ad(cw, ch, rng):
     tx = cw * (0.70 if side else 0.30)
     brand = BRANDS[rng.integers(len(BRANDS))]
     fs = int(ch * 0.26)
-    bf = ImageFont.truetype(FONT_B, fs)
+    bf = load_font(FONT_B, fs)
     while d.textlength(brand, font=bf) > cw * 0.40 and fs > 8:
         fs -= 2
-        bf = ImageFont.truetype(FONT_B, fs)
+        bf = load_font(FONT_B, fs)
     d.text((tx, ch * 0.40), brand, font=bf, fill=(255, 255, 255), anchor='mm')
     tag = TAGS[rng.integers(len(TAGS))]
     tfs = int(ch * 0.075)
-    tf = ImageFont.truetype(FONT_R, tfs)
+    tf = load_font(FONT_R, tfs)
     while d.textlength(tag, font=tf) > cw * 0.40 and tfs > 6:
         tfs -= 1
-        tf = ImageFont.truetype(FONT_R, tfs)
+        tf = load_font(FONT_R, tfs)
     d.text((tx, ch * 0.64), tag, font=tf, fill=(235, 240, 255), anchor='mm')
     d.rectangle([tx - cw * 0.16, ch * 0.75, tx + cw * 0.16, ch * 0.77], fill=(255, 255, 255))
     out = np.asarray(im, np.float32) / 255.0

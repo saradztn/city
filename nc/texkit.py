@@ -8,13 +8,10 @@
 # height are authoring maps that shape the albedo (cavity AO, wet polish, ...).
 # -----------------------------------------------------------------------------
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 from scipy import ndimage as ndi
 from lib.noise import fnoise, bnoise, worley, smooth, scratches
-
-FONT_B = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
-FONT_R = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
-FONT_M = '/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf'
+from lib.fonts import FONT_B, FONT_R, FONT_M, load_font
 
 
 class PBR:
@@ -108,6 +105,6 @@ def lin2srgb(c):
 def draw_text_img(w, h, text, size, fill=(255, 255, 255), font=FONT_B, bg=(0, 0, 0, 0), anchor='mm', xy=None, stroke=0):
     im = Image.new('RGBA', (w, h), bg)
     d = ImageDraw.Draw(im)
-    f = ImageFont.truetype(font, size)
+    f = load_font(font, size)
     d.text(xy or (w / 2, h / 2), text, font=f, fill=fill, anchor=anchor, stroke_width=stroke, stroke_fill=fill)
     return im

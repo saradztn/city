@@ -6,11 +6,9 @@
 # All patterns are periodic (FFT / wrapped cellular noise) so they tile without seams.
 # -----------------------------------------------------------------------------
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 
-FONT_B = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
-FONT_R = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
-FONT_M = '/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf'
+from .fonts import FONT_B, FONT_R, FONT_M
 
 
 class Tex:
